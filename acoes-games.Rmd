@@ -1,0 +1,126 @@
+---
+title: "Ações do mundo dos games"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: scroll
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(tidyquant)
+library(dplyr)
+library(ggplot2)
+library(plotly)
+library(DT)
+
+prices <- read.csv("C:/Users/Framework/Documents/projetos/R/prices.csv") %>%
+  mutate(date = as.Date(date))
+
+tabela_periodo <- data.frame(
+  periodo = c("1M", "6M", "1A", "10A"),
+  dias = c(30, 60, 180, 3650)
+)
+
+colours = c(
+  "MSFT34" = "dark green", 
+  "ATVI34" = "black", 
+  "SNEC34" = "dark blue"
+)
+```
+
+Column {.sidebar}
+-----------------------------------------------------------------------
+
+```{r}
+selectInput(
+  "acao", label = "Escolha uma empresa",
+  choices = c(
+    "MSFT34", "SNEC34", "ATVI34"
+))
+
+selectInput(
+  "periodo", label = "Escolha um período",
+  choices = c(
+    "1M", "6M", "1A", "10A"
+))
+```
+
+Row {data-width=500}
+-----------------------------------------------------------------------
+
+### Empresa escolhida
+
+```{r}
+renderPlotly({
+  periodo <- Sys.Date() - filter(tabela_periodo, periodo == input$periodo)$dias
+  
+  prices %>%
+    filter(date >= periodo, symbol == input$acao) %>%
+    ggplot() +
+    aes(x = date, y = adjusted, color = symbol) +
+    geom_line() +
+    scale_color_manual(values = colours) +
+    labs(x = "", y = "Cotação") +
+    ggtitle(label = input$acao) +
+    theme(
+      panel.background = element_blank(),
+      plot.title = element_text(size = 22),
+      legend.position = "none"
+    )
+})
+
+
+```
+
+
+
+### Comparação entre as empresas
+
+```{r}
+renderPlotly({
+  periodo <- Sys.Date() - filter(tabela_periodo, periodo == input$periodo)$dias
+  
+  prices %>%
+    filter(date >= periodo) %>%
+    ggplot() +
+    aes(x = date, y = adjusted, color = symbol) +
+    geom_line(size = 1.1) +
+    scale_color_manual(values = colours) +
+    labs(x = "", y = "Cotação", color = "Ação") +
+    theme(
+      panel.background = element_blank()
+    )
+})
+```
+
+Row {data-width=500}
+-----------------------------------------------------------------------
+
+### Cotações
+
+```{r}
+renderDataTable({
+  periodo <- Sys.Date() - filter(tabela_periodo, periodo == input$periodo)$dias
+  
+  prices %>%
+    filter(date >+ periodo, symbol == input$acao) %>%
+    mutate(across(where(is.double), round, digits = 2)) %>%
+    arrange(desc(date)) %>%
+    rename(
+      Ação = symbol,
+      Data = date,
+      Abertura = open,
+      Máximo = high,
+      Mínimo = low,
+      Fechamento = close,
+      Volume = volume,
+      Ajustado = adjusted
+    ) %>%
+    datatable(rownames = FALSE)
+})
+
+
+```
+
